@@ -167,10 +167,72 @@ class Schelling:
         plt.savefig(file_name)
 
 class CultureSchelling(Schelling):
+    def __init__(self, width, height, empty_ratio, similarity_threshold, n_iterations, assimilation_ratio, races = 2):
+        Schelling.__init__(self, width, height, empty_ratio, similarity_threshold, n_iterations, races)
+        if type(assimilation_ratio) is float:
+            self.assimilation_ratio = [assimilation_ratio] * races
+        elif type(assimilation_ratio) is list and len(assimilation_ratio) == races:
+            self.assimilation_ratio = assimilation_ratio
 
+    def update(self):
+        assimilation_times = 0
+        for i in range(self.n_iterations):
+            if i % 20 == 0:
+                print('iterations: %d' % i)
+                print('homo: %s' %self.calculate_homo())
+                print('unsatisfied: %s' % len(self.unsatified[0]))
+                print('assimilation occur: %s' % assimilation_times)
+                assimilation_ratio = 0
+            self.calculate_unsatisfied()
+            self.search_empty()
+            self.move()
+            assimilation_times += self.assimilate()
+           
+    def assimilate(self):
+        self.calculate_possibility()
+        assimilation_times = 0
+        random_matrix = np.random.random((self.races, self.width, self.height))
+        # it is to find < value, so add the empty places 1.0
+        random_matrix += (1-self.empty_matrix[1:-1, 1:-1])
+        assimilation_occur = np.where(random_matrix < self.possibility_matrix)
+        occur_list = [(assimilation_occur[0][i]+1,
+            assimilation_ratio[1][i]+1,
+            assimilation_ratio[2][i]+1) for i in len(assimilation_occur[0])]
+        random.shuffle(occur_list)
+        for (race, x, y) in occur_list:
+            # race to itself
+            if race == self.feature_matrix[x][y]:
+                continue
+            else:
+                self.feature_matrix[x][y] = race
+                assimilation_times+= 1
+        
+
+    def calculate_possibility(self):
+        # self.possibility_matrix = np.zeros((self.width, self.height))
+        self.possibility_matrix = np.zeros((self.races, self.width, self.height))
+        basic_ratio_matrix = np.zeros(self.feature_matrix.shape)
+        surroudings = [(0, 0), (0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1), (2, 2)]
+        race_matrix = []
+        for i in range(0, self.races):
+            race_matrix_list.append(transfer_to_equal_matrix(self.feature_matrix, i+1))
+            race_matrix_list[-1] *= self.assimilation_ratio[i]
+            # the matrix of ratio of possibility of values
+            basic_ratio_matrix += race_matrix_list[-1]
+        for i in range(0, self.races):
+            race_matrix = race_matrix_list[i]
+            for x_context, y_context in surroudings:
+                self.possibility_matrix[i] += race_matrix[x_context:
+                        x_context+self.width, y_context:y_context+self.width]
+                self.possibility_matrix[i] *= basic_ratio_matrix[1:-1,1:-1]
+
+# tool function. label locations of equal value to 1.0, and others 0.0
+def transfer_to_equal_matrix(raw_matrix, value):
+    raw_matrix = raw_matrix - value
+    raw_matrix /= denominator(raw_matrix)
+    return 1 - raw_matrix 
 
 def main():
-
     ##First Simulation
     # the parameters of class Schelling:
     # width, height, empty_ratio, similarity_threshold, n_iterations, races = 2
