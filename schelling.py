@@ -20,6 +20,7 @@ class Schelling:
         self.empty_ratio = empty_ratio
         self.similarity_threshold = similarity_threshold
         self.n_iterations = n_iterations
+        self.unsatified = [[], []]
     
     def prepare(self):
         self.empty_houses = []
@@ -29,7 +30,7 @@ class Schelling:
         self.feature_matrix = np.zeros((self.width+2, self.height+2))
 
         self.all_houses = list(itertools.product(range(self.width),range(self.height)))
-        print(self.all_houses)
+        # print(self.all_houses)
         random.shuffle(self.all_houses)
 
         self.n_empty = int( self.empty_ratio * len(self.all_houses) )
@@ -46,7 +47,7 @@ class Schelling:
         #print('empty: \n %s' % self.empty_matrix)
         #print('feature: \n %s' % self.feature_matrix)
 
-    def calculate_satisfied(self):
+    def calculate_similarity(self):
         feature = self.feature_matrix[1:-1,1:-1]
         # print('feature extract: \n %s' % feature)
         surroudings = [(0, 0), (0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1), (2, 2)]
@@ -68,25 +69,50 @@ class Schelling:
             # change same value to -1.0, different value to 1.0
             differ_matrix = 2.0 * (differ_matrix - 0.5)
             # print('after differ: \n%s' % differ_matrix)
+            # send empty value -> 0.0
             differ_matrix *= empty_matrix
             # print(differ_matrix)
-            sum_differ += differ_matrix
+            sum_differ += (differ_matrix + np.abs(differ_matrix))/2
+            # -1 -> 1, all neighbors
             sum_neighbor += np.abs(differ_matrix)
+        return sum_differ, sum_neighbor
+
+    def calculate_homo(self):
+        sum_differ, sum_neighbor = self.calculate_similarity()
+        # the sum_same is for the old version of sum_differ, which differ -> -1.0
+        # sum_same = (sum_neighbor - sum_differ)/2
+        # sum_differ += sum_same
+        #print('sum_differ: \n%s' % sum_differ)
+        #print('sum_neighbor: \n%s' % sum_neighbor)
+        # return np.sum(sum_same) / np.sum(sum_neighbor)
+        return 1.0 - np.sum(sum_differ) / np.sum(sum_neighbor)
+
+    def calculate_unsatisfied(self):
+        sum_differ, sum_neighbor = self.calculate_similarity()
         # print('sum_differ: \n%s' % sum_differ)
         # print('sum_neighbor: \n%s' % sum_neighbor)
         differ_ratio = sum_differ / denominator(sum_neighbor)
         differ_ratio *= self.empty_matrix[1:-1,1:-1]
         # print(differ_ratio)
-        self.unsatified = np.where(differ_ratio > self.similarity_threshold)
+        self.unsatified = np.where(differ_ratio > 1-self.similarity_threshold)
+        # print(len(self.unsatified))
         # print(self.unsatified)
 
     def update(self):
         for i in range(self.n_iterations):
+            # print(self.calculate_homo())
             if i % 20 == 0:
                 print('iterations: %d' % i)
-            self.calculate_satisfied()
+                print('homo: %s' %self.calculate_homo())
+                print('unsatisfied: %s' % len(self.unsatified[0]))
+                # print('occupied: %s' % np.sum(self.empty_matrix))
+            self.calculate_unsatisfied()
             self.search_empty()
             self.move()
+            #if i % 20 == 0:
+            #    print(len(self.unsatified[0]))
+            # print(self.calculate_homo())
+            # print(len(self.unsatified[0]))
 
     def search_empty(self):
         empty = self.empty_matrix[1:-1, 1:-1]
@@ -111,49 +137,36 @@ class Schelling:
             self.feature_matrix[x_to][y_to] = self.feature_matrix[x_from][y_from]
             self.feature_matrix[x_from][y_from] = 0
             # print(self.feature_matrix)
+        # print('occupied: %s' % (np.sum(self.empty_matrix)))
 
-    """
-    def update(self):
-        for i in range(self.n_iterations):
-            if i % 20 == 0:
-                print('iterations: %d' % i)
-            self.old_agents = copy.deepcopy(self.agents)
-            n_changes = 0
-            for agent in self.old_agents:
-                if self.is_unsatisfied(agent[0], agent[1]):
-                    agent_race = self.agents[agent]
-                    empty_house = random.choice(self.empty_houses)
-                    self.agents[empty_house] = agent_race
-                    del self.agents[agent]
-                    self.empty_houses.remove(empty_house)
-                    self.empty_houses.append(agent)
-                    n_changes += 1
-            #print 'Iteration: %d , Number of changes: %d' %(i+1, n_changes)
-            if n_changes == 0:
-                break
-    """
 
-    def move_to_empty(self, x, y):
-        race = self.agents[(x,y)]
-        empty_house = random.choice(self.empty_houses)
-        self.updated_agents[empty_house] = race
-        del self.updated_agents[(x, y)]
-        self.empty_houses.remove(empty_house)
-        self.empty_houses.append((x, y))
-
-    def plot(self, title, file_name):
+    def plot(self, title, file_name, figsize=None):
+        #if figsize is None:
+        #    figsize = (self.width, self.height)
+        #fig, ax = plt.subplots(figsize=figsize)
         fig, ax = plt.subplots()
         #If you want to run the simulation with more than 7 colors, you should set agent_colors accordingly
         agent_colors = {1:'b', 2:'r', 3:'g', 4:'c', 5:'m', 6:'y', 7:'k'}
-        for agent in self.agents:
-            ax.scatter(agent[0]+0.5, agent[1]+0.5, color=agent_colors[self.agents[agent]])
+        #for agent in self.agents:
+        #    ax.scatter(agent[0]+0.5, agent[1]+0.5, color=agent_colors[self.agents[agent]])
+        #for x in range(1, self.width+1):
+        #    for y in range(1, self.height+1):
+        #        type_no = self.feature_matrix[x][y]
+        #        if type_no > 0:
+        #            ax.scatter(x-0.5, y-0.5, color = agent_colors[type_no])
+        for key, value in agent_colors.items():
+            location = np.where(self.feature_matrix == key)
+            ax.scatter(location[0], location[1], color=value)
 
         ax.set_title(title, fontsize=10, fontweight='bold')
         ax.set_xlim([0, self.width])
         ax.set_ylim([0, self.height])
         ax.set_xticks([])
         ax.set_yticks([])
+        print('save: %s' % file_name)
         plt.savefig(file_name)
+
+class CultureSchelling(Schelling):
 
 
 def main():
@@ -161,9 +174,11 @@ def main():
     ##First Simulation
     # the parameters of class Schelling:
     # width, height, empty_ratio, similarity_threshold, n_iterations, races = 2
-    schelling_1 = Schelling(50, 50, 0.2, 0.2, 100, 3)
+    schelling_1 = Schelling(50, 50, 0.2, 0.4, 2000, 3)
     schelling_1.prepare()
+    schelling_1.plot('Schelling Model with 3 colors: Initial State', 'schelling_3_initial.png')
     schelling_1.update()
+    schelling_1.plot('Schelling Model with 3 colors: Final State with Happiness Threshold 20%', 'schelling_3_20_final.png')
 
 	#schelling_2 = Schelling(50, 50, 0.3, 0.5, 500, 2)
 	#schelling_2.prepare()
