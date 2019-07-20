@@ -20,7 +20,7 @@ class Schelling:
         self.empty_ratio = empty_ratio
         self.similarity_threshold = similarity_threshold
         self.n_iterations = n_iterations
-        self.unsatified = [[], []]
+        self.unsatisfied = [[], []]
     
     def prepare(self):
         self.empty_houses = []
@@ -100,9 +100,9 @@ class Schelling:
         differ_ratio = sum_differ / denominator(sum_neighbor)
         differ_ratio *= self.empty_matrix[1:-1,1:-1]
         # print(differ_ratio)
-        self.unsatified = np.where(differ_ratio > 1-self.similarity_threshold)
-        # print(len(self.unsatified))
-        # print(self.unsatified)
+        self.unsatisfied = np.where(differ_ratio > 1-self.similarity_threshold)
+        # print(len(self.unsatisfied))
+        # print(self.unsatisfied)
 
     def update(self):
         for i in range(self.n_iterations):
@@ -110,15 +110,15 @@ class Schelling:
             if i % 20 == 0:
                 print('iterations: %d' % i)
                 print('homo: %s' %self.calculate_homo())
-                # print('unsatisfied: %s' % len(self.unsatified[0]))
-                # print('occupied: %s' % np.sum(self.empty_matrix))
+                # print('unsatisfied: %s' % len(self.unsatisfied[0]))
+                print('occupied: %s' % np.sum(self.empty_matrix))
             self.calculate_unsatisfied()
             self.search_empty()
             self.move()
             #if i % 20 == 0:
-            #    print(len(self.unsatified[0]))
+            #    print(len(self.unsatisfied[0]))
             # print(self.calculate_homo())
-            # print(len(self.unsatified[0]))
+            # print(len(self.unsatisfied[0]))
 
     def search_empty(self):
         empty = self.empty_matrix[1:-1, 1:-1]
@@ -126,23 +126,32 @@ class Schelling:
         # print(self.empty)
 
     def move(self):
-        unsatified = [(self.unsatified[0][i], self.unsatified[1][i]) 
-                for i in range(0, len(self.unsatified[0]))]
+        unsatisfied = [(self.unsatisfied[0][i], self.unsatisfied[1][i],
+            self.feature_matrix[self.unsatisfied[0][i]+1,
+                self.unsatisfied[1][i]+1]) 
+                for i in range(0, len(self.unsatisfied[0]))]
         empty = [(self.empty[0][i], self.empty[1][i]) 
                 for i in range(0, len(self.empty[0]))]
-        random.shuffle(unsatified)
+        for x, y, val in unsatisfied:
+            empty.append((x, y))
+            self.feature_matrix[x+1][y+1] = 0.0
+            self.empty_matrix[x+1][y+1] = 0.0
+        random.shuffle(unsatisfied)
         random.shuffle(empty)
-        if len(unsatified) > len(empty):
-            unsatified = unsatified[:len(empty)]
-        #print(unsatified)
+        empty = empty[:len(unsatisfied)]
+        #if len(unsatisfied) > len(empty):
+        #    unsatisfied = unsatisfied[:len(empty)]
+        #print(unsatisfied)
         #print(empty)
-        for i in range(0, len(unsatified)):
-            x_from, y_from = unsatified[i][0]+1, unsatified[i][1]+1
+        for i in range(0, len(unsatisfied)):
+            # x_from, y_from = unsatisfied[i][0]+1, unsatisfied[i][1]+1
+            new_value = unsatisfied[i][2]
             x_to, y_to = empty[i][0]+1, empty[i][1]+1
-            self.empty_matrix[x_from][y_from] = 0.0
+            # self.empty_matrix[x_from][y_from] = 0.0
             self.empty_matrix[x_to][y_to] = 1.0
-            self.feature_matrix[x_to][y_to] = self.feature_matrix[x_from][y_from]
-            self.feature_matrix[x_from][y_from] = 0
+            # self.feature_matrix[x_to][y_to] = self.feature_matrix[x_from][y_from]
+            self.feature_matrix[x_to][y_to] = new_value
+            # self.feature_matrix[x_from][y_from] = 0
             # print(self.feature_matrix)
         # print('occupied: %s' % (np.sum(self.empty_matrix)))
 
@@ -188,7 +197,7 @@ class CultureSchelling(Schelling):
                 print('iterations: %d' % i)
                 # print(self.feature_matrix)
                 print('homo: %s' %self.calculate_homo())
-                # print('unsatisfied: %s' % len(self.unsatified[0]))
+                # print('unsatisfied: %s' % len(self.unsatisfied[0]))
                 print('assimilation occur: %s' % assimilation_times)
                 distribution = self.race_distribution()
                 print('race distribution: %s' % distribution)
@@ -267,7 +276,7 @@ def transfer_to_equal_matrix(raw_matrix, value):
     return 1 - raw_matrix 
 
 def main():
-    new_schelling = CultureSchelling(5, 5, 0.2, 0.4, 1, 0.001, 3)
+    new_schelling = Schelling(5, 5, 0.2, 0.4, 200, 3)
     new_schelling.prepare()
     new_schelling.update()
     	##Second Simulation Measuring Seggregation
