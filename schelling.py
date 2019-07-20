@@ -190,7 +190,9 @@ class CultureSchelling(Schelling):
                 print('homo: %s' %self.calculate_homo())
                 # print('unsatisfied: %s' % len(self.unsatified[0]))
                 print('assimilation occur: %s' % assimilation_times)
-                print('race distribution: %s' % self.race_distribution())
+                distribution = self.race_distribution()
+                print('race distribution: %s' % distribution)
+                print('basic value: %s' % self.original_homo(distribution))
                 assimilation_times = 0
             self.calculate_unsatisfied()
             self.search_empty()
@@ -205,6 +207,12 @@ class CultureSchelling(Schelling):
             race_num_list.append(np.sum(race_exist))
         return race_num_list
 
+    def original_homo(self, distribution):
+        value = 0.0
+        sum_number = np.sum(distribution)
+        for number in distribution:
+            value += (number / sum_number) ** 2
+        return value
 
     def assimilate(self):
         self.calculate_possibility()
