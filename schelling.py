@@ -75,6 +75,8 @@ class Schelling:
             sum_differ += (differ_matrix + np.abs(differ_matrix))/2
             # -1 -> 1, all neighbors
             sum_neighbor += np.abs(differ_matrix)
+        sum_differ *= self.empty_matrix[1:-1,1:-1]
+        sum_neighbor *= self.empty_matrix[1:-1,1:-1]
         return sum_differ, sum_neighbor
 
     def calculate_homo(self):
@@ -85,6 +87,10 @@ class Schelling:
         #print('sum_differ: \n%s' % sum_differ)
         #print('sum_neighbor: \n%s' % sum_neighbor)
         # return np.sum(sum_same) / np.sum(sum_neighbor)
+        #print('sum_differ: %s' % np.sum(sum_differ))
+        #print(sum_differ)
+        #print('sum_neighbor: %s' % np.sum(sum_neighbor))
+        #print(sum_neighbor)
         return 1.0 - np.sum(sum_differ) / np.sum(sum_neighbor)
 
     def calculate_unsatisfied(self):
@@ -104,7 +110,7 @@ class Schelling:
             if i % 20 == 0:
                 print('iterations: %d' % i)
                 print('homo: %s' %self.calculate_homo())
-                print('unsatisfied: %s' % len(self.unsatified[0]))
+                # print('unsatisfied: %s' % len(self.unsatified[0]))
                 # print('occupied: %s' % np.sum(self.empty_matrix))
             self.calculate_unsatisfied()
             self.search_empty()
@@ -125,6 +131,7 @@ class Schelling:
         empty = [(self.empty[0][i], self.empty[1][i]) 
                 for i in range(0, len(self.empty[0]))]
         random.shuffle(unsatified)
+        random.shuffle(empty)
         if len(unsatified) > len(empty):
             unsatified = unsatified[:len(empty)]
         #print(unsatified)
@@ -179,15 +186,26 @@ class CultureSchelling(Schelling):
         for i in range(self.n_iterations):
             if i % 20 == 0:
                 print('iterations: %d' % i)
+                # print(self.feature_matrix)
                 print('homo: %s' %self.calculate_homo())
-                print('unsatisfied: %s' % len(self.unsatified[0]))
+                # print('unsatisfied: %s' % len(self.unsatified[0]))
                 print('assimilation occur: %s' % assimilation_times)
-                assimilation_ratio = 0
+                print('race distribution: %s' % self.race_distribution())
+                assimilation_times = 0
             self.calculate_unsatisfied()
             self.search_empty()
             self.move()
             assimilation_times += self.assimilate()
-           
+          
+    def race_distribution(self):
+        race_num_list = []
+        for i in range(0, self.races):
+            race_exist = transfer_to_equal_matrix(self.feature_matrix, i+1)
+            # print(race_exist)
+            race_num_list.append(np.sum(race_exist))
+        return race_num_list
+
+
     def assimilate(self):
         self.calculate_possibility()
         assimilation_times = 0
@@ -196,8 +214,8 @@ class CultureSchelling(Schelling):
         random_matrix += (1-self.empty_matrix[1:-1, 1:-1])
         assimilation_occur = np.where(random_matrix < self.possibility_matrix)
         occur_list = [(assimilation_occur[0][i]+1,
-            assimilation_ratio[1][i]+1,
-            assimilation_ratio[2][i]+1) for i in len(assimilation_occur[0])]
+            assimilation_occur[1][i]+1,
+            assimilation_occur[2][i]+1) for i in range(0, len(assimilation_occur[0]))]
         random.shuffle(occur_list)
         for (race, x, y) in occur_list:
             # race to itself
@@ -206,6 +224,7 @@ class CultureSchelling(Schelling):
             else:
                 self.feature_matrix[x][y] = race
                 assimilation_times+= 1
+        return assimilation_times
         
 
     def calculate_possibility(self):
@@ -213,7 +232,7 @@ class CultureSchelling(Schelling):
         self.possibility_matrix = np.zeros((self.races, self.width, self.height))
         basic_ratio_matrix = np.zeros(self.feature_matrix.shape)
         surroudings = [(0, 0), (0, 1), (0, 2), (1, 0), (1, 2), (2, 0), (2, 1), (2, 2)]
-        race_matrix = []
+        race_matrix_list = []
         for i in range(0, self.races):
             race_matrix_list.append(transfer_to_equal_matrix(self.feature_matrix, i+1))
             race_matrix_list[-1] *= self.assimilation_ratio[i]
@@ -228,38 +247,22 @@ class CultureSchelling(Schelling):
 
 # tool function. label locations of equal value to 1.0, and others 0.0
 def transfer_to_equal_matrix(raw_matrix, value):
+    #print('raw:')
+    #print(raw_matrix)
     raw_matrix = raw_matrix - value
+    #print('after:')
+    #print(raw_matrix)
+    raw_matrix = np.abs(raw_matrix)
     raw_matrix /= denominator(raw_matrix)
+    #print('subtract: ')
+    #print(1-raw_matrix)
     return 1 - raw_matrix 
 
 def main():
-    ##First Simulation
-    # the parameters of class Schelling:
-    # width, height, empty_ratio, similarity_threshold, n_iterations, races = 2
-    schelling_1 = Schelling(50, 50, 0.2, 0.4, 2000, 3)
-    schelling_1.prepare()
-    schelling_1.plot('Schelling Model with 3 colors: Initial State', 'schelling_3_initial.png')
-    schelling_1.update()
-    schelling_1.plot('Schelling Model with 3 colors: Final State with Happiness Threshold 20%', 'schelling_3_20_final.png')
-
-	#schelling_2 = Schelling(50, 50, 0.3, 0.5, 500, 2)
-	#schelling_2.prepare()
-
-	#schelling_3 = Schelling(50, 50, 0.3, 0.8, 500, 2)
-	#schelling_3.prepare()
-
-	# schelling_1.plot('Schelling Model with 5 colors: Initial State', 'schelling_5_initial.png')
-
-	# schelling_1.update()
-	#schelling_2.update()
-	#schelling_3.update()
-
-	# schelling_1.plot('Schelling Model with 5 colors: Final State with Happiness Threshold 20%', 'schelling_5_20_final.png')
-	#schelling_2.plot('Schelling Model with 2 colors: Final State with Happiness Threshold 50%', 'schelling_2_50_final.png')
-	#schelling_3.plot('Schelling Model with 2 colors: Final State with Happiness Threshold 80%', 'schelling_2_80_final.png')
-
-
-	##Second Simulation Measuring Seggregation
+    new_schelling = CultureSchelling(5, 5, 0.2, 0.4, 1, 0.001, 3)
+    new_schelling.prepare()
+    new_schelling.update()
+    	##Second Simulation Measuring Seggregation
 	#similarity_threshold_ratio = {}
 	#for i in [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95]:
 	#	schelling = Schelling(50, 50, 0.3, i, 500, 2)
