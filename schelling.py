@@ -111,7 +111,7 @@ class Schelling:
                 print('iterations: %d' % i)
                 print('homo: %s' %self.calculate_homo())
                 # print('unsatisfied: %s' % len(self.unsatisfied[0]))
-                print('occupied: %s' % np.sum(self.empty_matrix))
+                # print('occupied: %s' % np.sum(self.empty_matrix))
             self.calculate_unsatisfied()
             self.search_empty()
             self.move()
